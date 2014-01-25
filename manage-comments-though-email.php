@@ -39,18 +39,91 @@ class Mange_Comments_Through_Email
 	
 	function __construct()
 	{
-		# code...
+		add_action( 'admin_init', array($this, 'init_admin') );
 	}
 
+	/**
+	 * Init Plugin
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
 	public function init_plugin()
 	{
 
 	}
 
+	/**
+	 * Init Plugin Backend
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
 	public function init_admin()
 	{
+		add_settings_section(
+			'mcte_api_section',
+			__( 'Mailgun API', 'mcte' ),
+			array( $this, 'generate_api_section' ),
+			'discussion'
+		);
+	 	
+	 	add_settings_field(
+			'mcte_api_key',
+			__( 'API Key', 'mcte' ),
+			array( $this, 'generate_api_key_field' ),
+			'discussion',
+			'mcte_api_section'
+		);
 
+		register_setting( 'discussion', 'mcte_setting' , array($this, 'sanitize_api_key') );
 	}
+
+	/**
+	 * Wistia API Section
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function generate_api_section() {
+	 	echo '<p>'.  __( 'You can create and account and get your API key from <a href="htpp://Mailgun.com" target="_blank">Mailgun.com</a>.', 'mcte' ) .'</p>';
+	}
+
+	/**
+	 * Register API field
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function generate_api_key_field() {
+		$settings = (array) get_option( 'mcte_setting' );
+		$api_key = isset($settings['api_key']) ? esc_attr( $settings['api_key'] ) : '' ;
+	 	echo '<input name="mcte_setting[api_key]" id="wev_api_key" type="text"  class="regular-text"  value="' . $api_key . '" /> ';
+	}
+
+	/**
+	 * Sanitize API key
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function sanitize_api_key( $input )
+	{
+		$output = array();  
+		      
+		foreach( $input as $key => $value ) {  
+			if( isset( $input[$key] ) ) 
+			    $output[$key] = trim(strip_tags( stripslashes( $input[ $key ] ) ));  
+		}
+		
+		return  $output;  
+	}
+
 
 }
 
