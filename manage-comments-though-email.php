@@ -3,7 +3,7 @@
 /*
 Plugin Name: Mange Comments Through Email
 Plugin URI: http://IvanLopezDeveloper.com/
-Description: Easy mange your blog comments directly from your email. Quickly approve, reply, mark as span or trash any comment without ever having to leave your inbox.
+Description: Easily mange your blog comments directly from your email. Quickly approve, reply, mark as span or trash any comment without ever having to leave your inbox.
 Version: 0.1
 Author: Ivan Lopez
 Author URI: http://IvanLopezDeveloper.com/
@@ -31,3 +31,27 @@ Author URI: http://IvanLopezDeveloper.com/
  * **********************************************************************
  */
 
+/**
+* Initiate Comment Class
+*/
+class Mange_Comments_Through_Email
+{
+	
+	function __construct()
+	{
+		# code...
+	}
+
+	public function init_plugin()
+	{
+
+	}
+
+	public function init_admin()
+	{
+
+	}
+
+}
+
+$GLOBAL['il_email_comment'] = new Mange_Comments_Through_Email();
