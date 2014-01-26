@@ -31,6 +31,11 @@ Author URI: http://IvanLopezDeveloper.com/
  * **********************************************************************
  */
 
+if( !defined('ABSPATH') ) exit;
+
+require 'vendor/autoload.php';
+use Mailgun\Mailgun;
+
 /**
 * Initiate Comment Class
 */
@@ -78,6 +83,14 @@ class Mange_Comments_Through_Email
 			'mcte_api_section'
 		);
 
+		add_settings_field(
+			'mcte_domain_name',
+			__( 'Domain Name', 'mcte' ),
+			array( $this, 'generate_domain_field' ),
+			'discussion',
+			'mcte_api_section'
+		);
+
 		register_setting( 'discussion', 'mcte_setting' , array($this, 'sanitize_api_key') );
 	}
 
@@ -93,21 +106,7 @@ class Mange_Comments_Through_Email
 	}
 
 	/**
-	 * Register API field
 	 * Genereate API field
-	 *
-	 * @since    0.1.0
-	 *
-	 * @return string
-	 */
-	public function generate_domain_field() {
-		$settings = (array) get_option( 'mcte_setting' );
-		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
-	 	echo '<input name="mcte_setting[domain_name]" id="wev_domain_name" type="text"  class="regular-text"  value="' . $domain_name . '" /> ';
-	}
-
-	/**
-	 * Generate domain name field
 	 *
 	 * @since    0.1.0
 	 *
@@ -118,6 +117,20 @@ class Mange_Comments_Through_Email
 		$api_key = isset($settings['api_key']) ? esc_attr( $settings['api_key'] ) : '' ;
 	 	echo '<input name="mcte_setting[api_key]" id="wev_api_key" type="text"  class="regular-text"  value="' . $api_key . '" /> ';
 	}
+
+	/**
+	 * Generate domain name field
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function generate_domain_field() {
+		$settings = (array) get_option( 'mcte_setting' );
+		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
+	 	echo '<input name="mcte_setting[domain_name]" id="wev_domain_name" type="text"  class="regular-text"  value="' . $domain_name . '" /> ';
+	}
+	
 
 	/**
 	 * Sanitize API key
@@ -138,7 +151,94 @@ class Mange_Comments_Through_Email
 		return  $output;  
 	}
 
-
 }
+
+
+/**
+ * Send Moderator email through mail gun
+ *
+ * @since    0.1.0
+ *
+ * @return string
+ */
+
+
+if ( ! function_exists( 'wp_notify_moderator' ) ){
+
+
+	function wp_notify_moderator($comment_id)
+	{
+
+		global $wpdb;
+		$settings = (array) get_option( 'mcte_setting' );
+
+		$mgClient = new Mailgun($settings['api_key']);
+		$domain = $settings['domain_name'];
+
+		$comment = get_comment($comment_id);
+		$post = get_post($comment->comment_post_ID);
+		$user = get_userdata( $post->post_author );
+		// Send to the administration and to the post author if the author can modify the comment.
+		$emails = array( get_option( 'admin_email' ) );
+		if ( user_can( $user->ID, 'edit_comment', $comment_id ) && ! empty( $user->user_email ) ) {
+			if ( 0 !== strcasecmp( $user->user_email, get_option( 'admin_email' ) ) )
+				$emails[] = $user->user_email;
+		}
+
+		$comment_author_domain = @gethostbyaddr($comment->comment_author_IP);
+		$comments_waiting = $wpdb->get_var("SELECT count(comment_ID) FROM $wpdb->comments WHERE comment_approved = '0'");
+
+		// The blogname option is escaped with esc_html on the way into the database in sanitize_option
+		// we want to reverse this for the plain text arena of emails.
+		$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
+
+		switch ( $comment->comment_type ) {
+			case 'trackback':
+				$notify_message  = sprintf( __('A new trackback on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+				$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
+				$notify_message .= sprintf( __('Website : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
+				$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
+				$notify_message .= __('Trackback excerpt: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
+				break;
+			case 'pingback':
+				$notify_message  = sprintf( __('A new pingback on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+				$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
+				$notify_message .= sprintf( __('Website : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
+				$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
+				$notify_message .= __('Pingback excerpt: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
+				break;
+			default: // Comments
+				$notify_message  = sprintf( __('A new comment on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+				$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
+				$notify_message .= sprintf( __('Author : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
+				$notify_message .= sprintf( __('E-mail : %s'), $comment->comment_author_email ) . "\r\n";
+				$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
+				$notify_message .= sprintf( __('Whois  : http://whois.arin.net/rest/ip/%s'), $comment->comment_author_IP ) . "\r\n";
+				$notify_message .= __('Comment: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
+				break;
+		}
+
+		$notify_message .= sprintf( _n('Currently %s comment is waiting for approval. Please visit the moderation panel:',
+	 		'Currently %s comments are waiting for approval. Please visit the moderation panel:', $comments_waiting), number_format_i18n($comments_waiting) ) . "\r\n";
+		$notify_message .= admin_url("edit-comments.php?comment_status=moderated") . "\r\n";
+
+		$subject = sprintf( __('[%1$s] Please moderate: "%2$s"'), $blogname, $post->post_title );
+		$message_headers = '';
+
+		$emails          = apply_filters( 'comment_moderation_recipients', $emails,          $comment_id );
+		$notify_message  = apply_filters( 'comment_moderation_text',       $notify_message,  $comment_id );
+		$subject         = apply_filters( 'comment_moderation_subject',    $subject,         $comment_id );
+		$message_headers = apply_filters( 'comment_moderation_headers',    $message_headers, $comment_id );
+
+		$result = $mgClient->sendMessage("$domain",
+		                  array('from'    => 'New Comment <comment@'.$domain.'>',
+		                        'to'      => implode(', ', $emails ),
+		                        'subject' => $subject ,
+		                        'text'    => $notify_message ));
+
+		return true;
+	}
+}
+
 
 $GLOBAL['il_email_comment'] = new Mange_Comments_Through_Email();
