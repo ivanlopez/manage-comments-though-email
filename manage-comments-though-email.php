@@ -94,6 +94,20 @@ class Mange_Comments_Through_Email
 
 	/**
 	 * Register API field
+	 * Genereate API field
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function generate_domain_field() {
+		$settings = (array) get_option( 'mcte_setting' );
+		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
+	 	echo '<input name="mcte_setting[domain_name]" id="wev_domain_name" type="text"  class="regular-text"  value="' . $domain_name . '" /> ';
+	}
+
+	/**
+	 * Generate domain name field
 	 *
 	 * @since    0.1.0
 	 *
