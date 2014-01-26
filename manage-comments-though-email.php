@@ -33,7 +33,9 @@ Author URI: http://IvanLopezDeveloper.com/
 
 if( !defined('ABSPATH') ) exit;
 
-require 'vendor/autoload.php';
+if (! class_exists('Mailgun')) 
+	require 'vendor/autoload.php';
+
 use Mailgun\Mailgun;
 
 /**
@@ -44,7 +46,12 @@ class Mange_Comments_Through_Email
 	
 	function __construct()
 	{
+		add_action( 'init', array($this, 'init_plugin') );
 		add_action( 'admin_init', array($this, 'init_admin') );
+		add_action( 'template_redirect', array( $this, 'email_comment_request' ), -1);
+		add_action( 'update_option_mcte_setting', array($this, 'create_mailgun_routes') );
+		add_action( 'add_option_mcte_setting', array($this, 'create_mailgun_routes') );
+
 	}
 
 	/**
@@ -56,7 +63,52 @@ class Mange_Comments_Through_Email
 	 */
 	public function init_plugin()
 	{
+		add_rewrite_endpoint( 'email-comment', EP_ALL );
 
+	}
+
+	public function create_mailgun_routes()
+	{
+	
+		$settings = (array) get_option( 'mcte_setting' );
+		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
+		$api_key = isset($settings['api_key']) ? esc_attr( $settings['api_key'] ) : '' ;
+
+		if (!empty($domain_name) && !empty($api_key)) {
+
+			$mgClient = new Mailgun( $api_key );
+			$routes = $mgClient->get("routes");
+
+			foreach ($routes->http_response_body->items as $route ) {
+				if ($route->actions[0] ==  'forward("'. get_site_url() .'/email-comment")') 
+					return;
+			}
+
+			$result = $mgClient->post("routes",
+			           array('priority'    => 1,
+			                 'expression'  => 'match_recipient("comment@'. $domain_name .'")',
+			                 'action'      => array('forward("'. get_site_url() .'/email-comment")',
+			                                        'stop()'),
+			                 'description' => 'Route that manages comments.'));
+
+		}
+	
+	}
+
+	/**
+	 * Rout API Call to action
+	 *
+	 * @since    1.0.0
+	 * @return JSON
+	 */
+	public function email_comment_request()
+	{
+		global $wp_query;
+
+		if ( ! isset( $wp_query->query_vars[ 'email-comment' ] ) )
+			return;
+
+	    	exit;
 	}
 
 	/**
@@ -155,20 +207,16 @@ class Mange_Comments_Through_Email
 
 
 /**
- * Send Moderator email through mail gun
+ * Send Moderator email through mailgun wp_notify_moderator()
  *
  * @since    0.1.0
  *
  * @return string
  */
-
-
 if ( ! function_exists( 'wp_notify_moderator' ) ){
-
 
 	function wp_notify_moderator($comment_id)
 	{
-
 		global $wpdb;
 		$settings = (array) get_option( 'mcte_setting' );
 
