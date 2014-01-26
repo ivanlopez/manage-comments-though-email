@@ -270,7 +270,7 @@ if ( ! function_exists( 'wp_notify_moderator' ) ){
 	 		'Currently %s comments are waiting for approval. Please visit the moderation panel:', $comments_waiting), number_format_i18n($comments_waiting) ) . "\r\n";
 		$notify_message .= admin_url("edit-comments.php?comment_status=moderated") . "\r\n";
 
-		$subject = sprintf( __('[%1$s] Please moderate: "%2$s"'), $blogname, $post->post_title );
+		$subject = sprintf( __('[%1$s] Please moderate: "%2$s" %3$s'), $blogname, $post->post_title , 'MCTE:'. $comment_id );
 		$message_headers = '';
 
 		$emails          = apply_filters( 'comment_moderation_recipients', $emails,          $comment_id );
