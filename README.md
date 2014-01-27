@@ -9,6 +9,16 @@ Easily mange your blog comments directly from your email. Quickly approve, reply
 * Mark comment as spam by replying to the email @spam
 * Trash a comment by replying to the email @trash
 
+### Example Reply Email
+
+```
+@approve
+
+Your reply to the comment
+
+@end
+
+```
 
 ## Requirements
 
