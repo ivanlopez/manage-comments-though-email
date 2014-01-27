@@ -17,7 +17,6 @@ Easily mange your blog comments directly from your email. Quickly approve, reply
 Your reply to the comment
 
 @end
-
 ```
 
 ## Requirements
