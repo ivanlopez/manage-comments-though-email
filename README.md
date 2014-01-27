@@ -5,7 +5,7 @@ Easily mange your blog comments directly from your email. Quickly approve, reply
 ## Features
 
 * Approve a comment by replying to the email @approved
-* Reply to a comment by replying to the email and adding @approved and your message
+* Reply to a comment by replying to the email and wrapping your comment with @approve and @end
 * Mark comment as spam by replying to the email @spam
 * Trash a comment by replying to the email @trash
 

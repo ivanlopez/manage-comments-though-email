@@ -38,6 +38,9 @@ if (! class_exists('Mailgun'))
 
 use Mailgun\Mailgun;
 
+if (! class_exists('Comment_Manager')) 
+	require 'includes/class-comment-manager.php';
+
 /**
 * Initiate Comment Class
 */
@@ -64,35 +67,6 @@ class Mange_Comments_Through_Email
 	public function init_plugin()
 	{
 		add_rewrite_endpoint( 'email-comment', EP_ALL );
-
-	}
-
-	public function create_mailgun_routes()
-	{
-	
-		$settings = (array) get_option( 'mcte_setting' );
-		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
-		$api_key = isset($settings['api_key']) ? esc_attr( $settings['api_key'] ) : '' ;
-
-		if (!empty($domain_name) && !empty($api_key)) {
-
-			$mgClient = new Mailgun( $api_key );
-			$routes = $mgClient->get("routes");
-
-			foreach ($routes->http_response_body->items as $route ) {
-				if ($route->actions[0] ==  'forward("'. get_site_url() .'/email-comment")') 
-					return;
-			}
-
-			$result = $mgClient->post("routes",
-			           array('priority'    => 1,
-			                 'expression'  => 'match_recipient("comment@'. $domain_name .'")',
-			                 'action'      => array('forward("'. get_site_url() .'/email-comment")',
-			                                        'stop()'),
-			                 'description' => 'Route that manages comments.'));
-
-		}
-	
 	}
 
 	/**
@@ -107,6 +81,46 @@ class Mange_Comments_Through_Email
 
 		if ( ! isset( $wp_query->query_vars[ 'email-comment' ] ) )
 			return;
+
+		$actions = array('@trash', '@spam', '@approve');
+		$comment_action = '';
+
+		$message = $_POST['stripped-text'];
+
+		$comment_id = substr(strstr( $_POST['subject'] , 'MCTE:', false), 5 );
+
+		foreach ($actions as $action) {
+			if (strpos( strtolower($message), $action) !== false)
+				$comment_action = $action;
+		}
+
+		$manager = new Comment_Manager( $comment_id );
+
+		switch ($comment_action) {
+			case '@trash':
+				$manager->trash();
+			break;
+
+			case '@spam':
+				$manager->spam();
+			break;
+
+			case '@approve':
+				$manager->approve();
+
+				if (strpos( strtolower($message), '@end') !== false)
+				{
+					$start_message = strpos( strtolower($message), '@approve');
+					$end_message = strpos( strtolower($message), '@end');
+					$message = trim( substr( $message, $start_message + 8  , $end_message - $start_message - 8 ) );
+
+					$user = get_user_by( 'email' , $_POST['sender'] );
+
+					$manager->reply($message , $user->id);
+				}
+
+			break;
+		}
 
 	    	exit;
 	}
@@ -183,7 +197,6 @@ class Mange_Comments_Through_Email
 	 	echo '<input name="mcte_setting[domain_name]" id="wev_domain_name" type="text"  class="regular-text"  value="' . $domain_name . '" /> ';
 	}
 	
-
 	/**
 	 * Sanitize API key
 	 *
@@ -201,6 +214,41 @@ class Mange_Comments_Through_Email
 		}
 		
 		return  $output;  
+	}
+
+	/**
+	 * On update setting generate route in Mailgun if one does not exist
+	 *
+	 * @since    0.1.0
+	 *
+	 * @return string
+	 */
+	public function create_mailgun_routes()
+	{
+	
+		$settings = (array) get_option( 'mcte_setting' );
+		$domain_name = isset($settings['domain_name']) ? esc_attr( $settings['domain_name'] ) : '' ;
+		$api_key = isset($settings['api_key']) ? esc_attr( $settings['api_key'] ) : '' ;
+
+		if (!empty($domain_name) && !empty($api_key)) {
+
+			$mgClient = new Mailgun( $api_key );
+			$routes = $mgClient->get("routes");
+
+			foreach ($routes->http_response_body->items as $route ) {
+				if ($route->actions[0] ==  'forward("'. get_site_url() .'/email-comment")') 
+					return;
+			}
+
+			$result = $mgClient->post("routes",
+			           array('priority'    => 1,
+			                 'expression'  => 'match_recipient("comment@'. $domain_name .'")',
+			                 'action'      => array('forward("'. get_site_url() .'/email-comment")',
+			                                        'stop()'),
+			                 'description' => 'Route that manages comments.'));
+
+		}
+	
 	}
 
 }
