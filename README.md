@@ -1,6 +1,6 @@
-# Mange WordPress Comments Through Your Email
+# Manage WordPress Comments Through Your Email
 
-Easily mange your blog comments directly from your email. Quickly approve, reply, mark as span or trash any comment without ever having to leave your inbox.
+Easily manage your blog comments directly from your email. Quickly approve, reply, mark as spam or trash any comment without ever having to leave your inbox.
 
 ## Features
 
@@ -21,4 +21,4 @@ Your reply to the comment
 
 ## Requirements
 
-* Your going to need and account with [Mail Gun](http://mailgun.com)
+* You're going to need an account with [Mail Gun](http://mailgun.com)
